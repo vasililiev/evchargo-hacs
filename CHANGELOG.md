@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.5.4.1
+- fixed stale charging-switch state so unplugging/interruption resets the Home Assistant switch and clears the charger-side charge request to avoid unintended auto-resume on reconnect
+- clarified the repository README as a Home Assistant + HACS integration and documented the charging-state reset behavior
+
 ## 2026.4.25.8
 - adjusted German entity labels for plugged-in state and session energy
 - documented testing with charger model AC011K-AU-25

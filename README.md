@@ -4,7 +4,7 @@
 >
 > **AI-assisted project:** Parts of this repository were created with AI assistance. See [AI-DISCLAIMER.md](./AI-DISCLAIMER.md).
 
-Custom HACS integration for Evchargo chargers using the confirmed mobile-app API path:
+Custom **Home Assistant** integration for Evchargo chargers, installable via **HACS**, using the confirmed mobile-app API path:
 
 - `https://api.evchargo.com:7030/Charge/app/v1/...`
 
@@ -28,6 +28,7 @@ It has been tested with the charger model **AC011K-AU-25**.
 - Polling via `DataUpdateCoordinator`
 - Read access to the confirmed charger data surface
 - Charging switch (on/off) with immediate execution
+- Automatic reset of the Home Assistant charging switch when charging stops after unplugging or interruption, so reconnecting the car does not silently resume a stale HA-issued charge request
 - Current limit number entity (`PUT /app/v1/home/cp/{cpId}/current?current=<A>`) with immediate execution and refresh
 - Main status sensor with flattened raw attributes from the confirmed app endpoints
 
@@ -64,6 +65,7 @@ The integration fetches data from these confirmed endpoints when available:
 - Only the practically confirmed write actions are exposed right now: charging on/off and current limit.
 - Status polling is configurable between 30 and 240 seconds, with a default of 60 seconds.
 - Switch interactions and current-limit changes are executed immediately and then refreshed right away.
+- When the charger no longer reports active charging, the integration clears the HA charging switch state and sends a stop command once so a reconnect does not unexpectedly resume an old HA-triggered charging request.
 - Additional writable charger options seen in APK traces should be treated as experimental until their payloads are verified more thoroughly.
 
 ## AI disclaimer

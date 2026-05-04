@@ -27,12 +27,10 @@ class EvchargoChargingSwitch(EvchargoCoordinatorEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
-        return (self.coordinator.data.get("detail") or {}).get("cpInCharging")
+        return self.coordinator.charging_enabled
 
     async def async_turn_on(self, **kwargs) -> None:
-        await self.coordinator.api.async_start_charging(self._charger_id)
-        await self.coordinator.async_refresh()
+        await self.coordinator.async_set_charging_enabled(True)
 
     async def async_turn_off(self, **kwargs) -> None:
-        await self.coordinator.api.async_stop_charging(self._charger_id)
-        await self.coordinator.async_refresh()
+        await self.coordinator.async_set_charging_enabled(False)
