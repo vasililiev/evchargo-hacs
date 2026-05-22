@@ -44,7 +44,9 @@ SENSORS: tuple[EvchargoSensorDescription, ...] = (
         value_fn=lambda data: first_float(
             data,
             "detail.chargingData.power",
+            "detail.chargingData.ratePower",
             "detail.power",
+            "detail.ratePower",
             "detail.kwPower",
         ),
     ),

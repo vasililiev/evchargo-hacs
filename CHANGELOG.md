@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.5.4.3
+- made the charging switch operate in assumed-state mode when the backend does not expose a clean boolean, so Home Assistant can still toggle charging
+- added an extra power fallback for `chargingData.ratePower` / `ratePower` based on newer API traces
+
 ## 2026.5.4.2
 - added sanitized debug logging for request/response tracing to help identify API drift without leaking secrets
 - logged overview/detail key shapes so Home Assistant logs can show which fields the backend currently returns

@@ -26,8 +26,14 @@ class EvchargoChargingSwitch(EvchargoCoordinatorEntity, SwitchEntity):
         self._attr_unique_id = f"{self._charger_id}_charging_control"
 
     @property
-    def is_on(self) -> bool | None:
-        return self.coordinator.charging_enabled
+    def assumed_state(self) -> bool:
+        """Allow toggling even when the charger does not report a clear on/off state."""
+        return self.coordinator.charging_enabled is None
+
+    @property
+    def is_on(self) -> bool:
+        state = self.coordinator.charging_enabled
+        return False if state is None else state
 
     async def async_turn_on(self, **kwargs) -> None:
         await self.coordinator.async_set_charging_enabled(True)
