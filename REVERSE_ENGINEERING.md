@@ -3,7 +3,7 @@
 ## Status
 Draft created on 2026-05-22 from:
 - the HACS integration code in this repository
-- local APK artifacts in `C:\Users\openclaw\.openclaw\workspace\Evchargo-app`
+- local APK artifacts `Evchargo-app`
 - static inspection only (no live API traffic captured yet)
 
 ---
