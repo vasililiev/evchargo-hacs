@@ -7,6 +7,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .__init__ import EvchargoConfigEntry
 from .entity import EvchargoCoordinatorEntity
+from .value import first_float
 
 
 async def async_setup_entry(
@@ -31,16 +32,28 @@ class EvchargoCurrentLimitNumber(EvchargoCoordinatorEntity, NumberEntity):
 
     @property
     def native_value(self) -> float | None:
-        value = (self.coordinator.data.get("detail") or {}).get("setCurrent")
-        return None if value is None else float(value)
+        return first_float(
+            self.coordinator.data,
+            "detail.setCurrent",
+            "detail.currentLimit",
+            "detail.maxCurrent",
+        )
 
     @property
     def native_min_value(self) -> float:
-        return float((self.coordinator.data.get("detail") or {}).get("enableMinCurrent") or 6)
+        return first_float(
+            self.coordinator.data,
+            "detail.enableMinCurrent",
+            "detail.minCurrent",
+        ) or 6.0
 
     @property
     def native_max_value(self) -> float:
-        return float((self.coordinator.data.get("detail") or {}).get("enableMaxCurrent") or 16)
+        return first_float(
+            self.coordinator.data,
+            "detail.enableMaxCurrent",
+            "detail.maxCurrent",
+        ) or 16.0
 
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.api.async_set_current_limit(self._charger_id, int(value))

@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import EvchargoApi, EvchargoApiError, EvchargoAuthError
 from .const import DEFAULT_SCAN_INTERVAL_SECONDS
+from .value import first_value
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,7 +72,15 @@ class EvchargoDataUpdateCoordinator(DataUpdateCoordinator[dict]):
 
     async def _async_reconcile_charging_state(self, data: dict[str, Any]) -> None:
         """Reset stale HA charging state once charging is no longer active."""
-        actual_state = _coerce_bool((data.get("detail") or {}).get("cpInCharging"))
+        actual_state = _coerce_bool(
+            first_value(
+                data,
+                "detail.cpInCharging",
+                "detail.isCharging",
+                "detail.charging",
+                "detail.inCharging",
+            )
+        )
 
         if self._charging_enabled is None:
             self._charging_enabled = actual_state

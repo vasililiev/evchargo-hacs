@@ -20,6 +20,8 @@ _LOGGER = logging.getLogger(__name__)
 
 SUCCESS_CODE = 2000
 AUTH_ERROR_CODES = {4001, 4010, 4401, 4402, 80114}
+CHARGER_ID_KEYS = ("cpId", "chargerId", "id", "pileId")
+SENSITIVE_KEYS = {"password", "token", "satoken", "authorization", "email"}
 
 
 class EvchargoError(Exception):
@@ -88,6 +90,16 @@ class EvchargoApi:
         include_token: bool = True,
     ) -> dict[str, Any]:
         url = f"{self._base_url}/{path.lstrip('/')}"
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug(
+                "Evchargo request %s %s include_token=%s params=%s data=%s json=%s",
+                method,
+                path,
+                include_token,
+                _sanitize_mapping(params),
+                _sanitize_mapping(data),
+                _sanitize_mapping(json_data),
+            )
         try:
             async with self._session.request(
                 method,
@@ -97,11 +109,13 @@ class EvchargoApi:
                 data=data,
                 json=json_data,
             ) as response:
-                return await self._parse_response(response)
+                return await self._parse_response(response, method=method, path=path)
         except ClientError as err:
             raise EvchargoApiError(f"HTTP error calling {path}: {err}") from err
 
-    async def _parse_response(self, response: ClientResponse) -> dict[str, Any]:
+    async def _parse_response(
+        self, response: ClientResponse, *, method: str, path: str
+    ) -> dict[str, Any]:
         try:
             payload = await response.json(content_type=None)
         except Exception as err:  # noqa: BLE001
@@ -109,6 +123,15 @@ class EvchargoApi:
             raise EvchargoApiError(
                 f"Unexpected non-JSON response ({response.status}): {text[:200]}"
             ) from err
+
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug(
+                "Evchargo response %s %s status=%s summary=%s",
+                method,
+                path,
+                response.status,
+                _summarize_payload(payload),
+            )
 
         code = payload.get("code")
         if code in AUTH_ERROR_CODES:
@@ -233,21 +256,28 @@ class EvchargoApi:
             "user_info": user_info,
         }
         result.update(dict(zip(optional_paths.keys(), optional_data, strict=True)))
+
+        result["detail"] = self._merge_charger_detail(
+            charger_id,
+            result.get("detail"),
+            result.get("cp_list"),
+            result.get("cp_list_alt"),
+        )
+        if _LOGGER.isEnabledFor(logging.DEBUG):
+            _LOGGER.debug(
+                "Evchargo overview for charger=%s detail_keys=%s cp_list_type=%s cp_list_alt_type=%s",
+                charger_id,
+                sorted((result.get("detail") or {}).keys()),
+                type(result.get("cp_list")).__name__,
+                type(result.get("cp_list_alt")).__name__,
+            )
         return result
 
     async def async_start_charging(self, charger_id: str, connector_num: int = 1) -> None:
-        await self._request_authenticated(
-            "POST",
-            f"/app/v1/home/cp/{charger_id}/start",
-            data={"connectorNum": connector_num},
-        )
+        await self._request_charge_action("start", charger_id, connector_num)
 
     async def async_stop_charging(self, charger_id: str, connector_num: int = 1) -> None:
-        await self._request_authenticated(
-            "POST",
-            f"/app/v1/home/cp/{charger_id}/stop",
-            data={"connectorNum": connector_num},
-        )
+        await self._request_charge_action("stop", charger_id, connector_num)
 
     async def async_set_current_limit(
         self,
@@ -280,3 +310,102 @@ class EvchargoApi:
                     "Current limit variant failed (%s %s): %s", method, kwargs, err
                 )
         raise EvchargoApiError(f"Unable to set current limit: {last_error}")
+
+    async def _request_charge_action(
+        self, action: str, charger_id: str, connector_num: int = 1
+    ) -> None:
+        path = f"/app/v1/home/cp/{charger_id}/{action}"
+        attempts: tuple[tuple[str, dict[str, Mapping[str, Any]]], ...] = (
+            ("POST", {"data": {"connectorNum": connector_num}}),
+            ("POST", {"params": {"connectorNum": connector_num}}),
+            ("POST", {"json_data": {"connectorNum": connector_num}}),
+            ("POST", {"data": {}}),
+            ("POST", {"params": {}}),
+            ("POST", {"json_data": {}}),
+        )
+        last_error: Exception | None = None
+        for method, kwargs in attempts:
+            try:
+                await self._request_authenticated(method, path, **kwargs)
+                return
+            except EvchargoError as err:
+                last_error = err
+                _LOGGER.debug(
+                    "Charge action variant failed (%s %s %s): %s",
+                    action,
+                    method,
+                    kwargs,
+                    err,
+                )
+        raise EvchargoApiError(f"Unable to {action} charging: {last_error}")
+
+    def _merge_charger_detail(
+        self,
+        charger_id: str,
+        detail: dict[str, Any] | None,
+        cp_list: Any,
+        cp_list_alt: Any,
+    ) -> dict[str, Any]:
+        merged: dict[str, Any] = {}
+        matched = self._find_charger_entry(charger_id, cp_list) or self._find_charger_entry(
+            charger_id, cp_list_alt
+        )
+        if isinstance(matched, dict):
+            merged.update(matched)
+        if isinstance(detail, dict):
+            merged.update(detail)
+        return merged
+
+    def _find_charger_entry(self, charger_id: str, payload: Any) -> dict[str, Any] | None:
+        if isinstance(payload, list):
+            items = payload
+        elif isinstance(payload, dict):
+            items = []
+            for key in ("records", "list", "rows", "data"):
+                value = payload.get(key)
+                if isinstance(value, list):
+                    items = value
+                    break
+        else:
+            items = []
+
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            for key in CHARGER_ID_KEYS:
+                value = item.get(key)
+                if value is not None and str(value) == str(charger_id):
+                    return item
+        return None
+
+
+def _sanitize_mapping(value: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    sanitized: dict[str, Any] = {}
+    for key, inner in value.items():
+        if key.lower() in SENSITIVE_KEYS:
+            sanitized[key] = "***"
+        else:
+            sanitized[key] = inner
+    return sanitized
+
+
+
+def _summarize_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "code": payload.get("code"),
+        "message": payload.get("message"),
+        "keys": sorted(payload.keys()),
+    }
+    data = payload.get("data")
+    if isinstance(data, dict):
+        summary["data_keys"] = sorted(data.keys())
+    elif isinstance(data, list):
+        summary["data_len"] = len(data)
+        first = data[0] if data else None
+        if isinstance(first, dict):
+            summary["data_first_keys"] = sorted(first.keys())
+    else:
+        summary["data_type"] = type(data).__name__
+    return summary

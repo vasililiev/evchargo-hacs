@@ -10,7 +10,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .__init__ import EvchargoConfigEntry
+from .coordinator import _coerce_bool
 from .entity import EvchargoCoordinatorEntity
+from .value import first_value
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -22,18 +24,35 @@ BINARY_SENSORS: tuple[EvchargoBinarySensorDescription, ...] = (
     EvchargoBinarySensorDescription(
         key="charging",
         translation_key="charging",
-        value_fn=lambda data: (data.get("detail") or {}).get("cpInCharging"),
+        value_fn=lambda data: first_value(
+            data,
+            "detail.cpInCharging",
+            "detail.isCharging",
+            "detail.charging",
+            "detail.inCharging",
+        ),
     ),
     EvchargoBinarySensorDescription(
         key="active_appointment",
         translation_key="active_appointment",
-        value_fn=lambda data: (data.get("detail") or {}).get("existsActiveAppointment"),
+        value_fn=lambda data: first_value(
+            data,
+            "detail.existsActiveAppointment",
+            "detail.isPlugged",
+            "detail.plugged",
+            "detail.connected",
+        ),
     ),
     EvchargoBinarySensorDescription(
         key="bluetooth_supported",
         translation_key="bluetooth_supported",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda data: (data.get("detail") or {}).get("supportBlueTooth"),
+        value_fn=lambda data: first_value(
+            data,
+            "detail.supportBlueTooth",
+            "detail.supportBluetooth",
+            "detail.bluetoothSupported",
+        ),
     ),
 )
 
@@ -60,4 +79,4 @@ class EvchargoBinarySensor(EvchargoCoordinatorEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        return self.entity_description.value_fn(self.coordinator.data)
+        return _coerce_bool(self.entity_description.value_fn(self.coordinator.data))

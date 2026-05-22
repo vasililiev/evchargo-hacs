@@ -29,8 +29,15 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True
 
 
+async def _async_update_listener(hass: HomeAssistant, entry: EvchargoConfigEntry) -> None:
+    """Reload entry when options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: EvchargoConfigEntry) -> bool:
     """Set up Evchargo from a config entry."""
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
     api = EvchargoApi(
         async_get_clientsession(hass),
         entry.data[CONF_USERNAME],

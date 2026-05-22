@@ -12,6 +12,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .__init__ import EvchargoConfigEntry
 from .const import ATTR_EXPERIMENTAL_CONTROLS, ATTR_SETTABLE_CONTROLS, EXPERIMENTAL_CONTROLS, SERVICE_CONTROLS
 from .entity import EvchargoCoordinatorEntity
+from .value import first_float, first_value
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -24,7 +25,14 @@ SENSORS: tuple[EvchargoSensorDescription, ...] = (
     EvchargoSensorDescription(
         key="status",
         translation_key="status",
-        value_fn=lambda data: (data.get("detail") or {}).get("runStatus"),
+        value_fn=lambda data: first_value(
+            data,
+            "detail.runStatus",
+            "detail.status",
+            "detail.cpStatus",
+            "detail.chargeStatus",
+            "detail.state",
+        ),
         extra_attributes=True,
     ),
     EvchargoSensorDescription(
@@ -33,7 +41,12 @@ SENSORS: tuple[EvchargoSensorDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.KILO_WATT,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: ((data.get("detail") or {}).get("chargingData") or {}).get("power"),
+        value_fn=lambda data: first_float(
+            data,
+            "detail.chargingData.power",
+            "detail.power",
+            "detail.kwPower",
+        ),
     ),
     EvchargoSensorDescription(
         key="current",
@@ -41,7 +54,12 @@ SENSORS: tuple[EvchargoSensorDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: ((data.get("detail") or {}).get("chargingData") or {}).get("current"),
+        value_fn=lambda data: first_float(
+            data,
+            "detail.chargingData.current",
+            "detail.current",
+            "detail.ampere",
+        ),
     ),
     EvchargoSensorDescription(
         key="voltage",
@@ -49,7 +67,11 @@ SENSORS: tuple[EvchargoSensorDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: ((data.get("detail") or {}).get("chargingData") or {}).get("voltage"),
+        value_fn=lambda data: first_float(
+            data,
+            "detail.chargingData.voltage",
+            "detail.voltage",
+        ),
     ),
     EvchargoSensorDescription(
         key="session_energy",
@@ -57,19 +79,31 @@ SENSORS: tuple[EvchargoSensorDescription, ...] = (
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: ((data.get("detail") or {}).get("chargingData") or {}).get("energy"),
+        value_fn=lambda data: first_float(
+            data,
+            "detail.chargingData.energy",
+            "detail.energy",
+            "detail.sessionEnergy",
+            "detail.kwh",
+        ),
     ),
     EvchargoSensorDescription(
         key="signal",
         translation_key="signal",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda data: (data.get("detail") or {}).get("signal"),
+        value_fn=lambda data: first_value(data, "detail.signal", "detail.rssi", "detail.csq"),
     ),
     EvchargoSensorDescription(
         key="firmware",
         translation_key="firmware",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda data: (data.get("firmware_info") or {}).get("currentVer"),
+        value_fn=lambda data: first_value(
+            data,
+            "firmware_info.currentVer",
+            "firmware_info.version",
+            "detail.firmwareVersion",
+            "detail.currentVer",
+        ),
     ),
 )
 
