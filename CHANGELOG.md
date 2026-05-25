@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.5.4.4
+- verified live start/stop behavior with vehicle cable connected; start and stop both succeed through the form-body `connectorNum` variant
+- added a pre-start cable-state guard: when the charger reports `runStatus: Available`, Home Assistant now refuses the start request with a clear "vehicle cable is not connected" message instead of silently accepting a no-op
+- kept the post-start reconciliation grace period so Home Assistant does not immediately undo a valid start while the charger is transitioning
+
 ## 2026.5.4.3
 - made the charging switch operate in assumed-state mode when the backend does not expose a clean boolean, so Home Assistant can still toggle charging
 - added an extra power fallback for `chargingData.ratePower` / `ratePower` based on newer API traces
