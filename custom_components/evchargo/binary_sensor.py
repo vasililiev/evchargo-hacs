@@ -4,7 +4,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorEntityDescription
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -30,6 +34,32 @@ BINARY_SENSORS: tuple[EvchargoBinarySensorDescription, ...] = (
             "detail.isCharging",
             "detail.charging",
             "detail.inCharging",
+        ),
+    ),
+    EvchargoBinarySensorDescription(
+        key="plugged_in",
+        translation_key="plugged_in",
+        device_class=BinarySensorDeviceClass.PLUG,
+        value_fn=lambda data: first_value(
+            data,
+            "detail.existsActiveAppointment",
+            "detail.isPlugged",
+            "detail.plugged",
+            "detail.connected",
+            "detail.connectorPlugged",
+        ),
+    ),
+    EvchargoBinarySensorDescription(
+        key="online",
+        translation_key="online",
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda data: first_value(
+            data,
+            "detail.online",
+            "detail.isOnline",
+            "detail.netOnline",
+            "detail.connectedToNetwork",
         ),
     ),
     EvchargoBinarySensorDescription(

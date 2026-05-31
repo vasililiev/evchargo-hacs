@@ -11,6 +11,12 @@ def first_value(data: dict[str, Any], *paths: str) -> Any:
         for part in path.split('.'):
             if isinstance(current, dict) and part in current:
                 current = current[part]
+            elif isinstance(current, list) and part.isdigit():
+                index = int(part)
+                if index >= len(current):
+                    found = False
+                    break
+                current = current[index]
             else:
                 found = False
                 break

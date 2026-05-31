@@ -28,12 +28,18 @@ PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.SWITCH,
     Platform.NUMBER,
+    Platform.BUTTON,
 ]
 
 ATTR_SETTABLE_CONTROLS = "settable_controls"
 ATTR_EXPERIMENTAL_CONTROLS = "experimental_controls"
 
-SERVICE_CONTROLS = ["charging_switch", "current_limit"]
+SERVICE_CONTROLS = [
+    "charging_switch",
+    "current_limit",
+    "refresh_button",
+    "reauthenticate_button",
+]
 EXPERIMENTAL_CONTROLS = [
     "plug_and_play_on_network",
     "boost_charging",

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.5.31.1
+- added diagnostic refresh and reauthenticate buttons for manual recovery after token or cloud-state issues
+- added extra diagnostic sensors for current limits, active charge order ID, latest firmware, plugged-in state, and online state
+- improved API error messages with HTTP method, endpoint, HTTP status, API code, and backend message
+- fixed nested list path handling so fields like `rate.connectorSetCurrentList.0.current` can be read reliably
+
 ## 2026.5.29.1
 - added stop-request variants that include the active `chargingData.orderId` for backends that require a session identifier
 - added a minimum-current fallback when the Evchargo backend rejects a stop command, so failed stops reduce charging as far as the API allows

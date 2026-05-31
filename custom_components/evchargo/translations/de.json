@@ -50,16 +50,37 @@
       "session_energy": {
         "name": "Geladen Leistung"
       },
+      "current_limit_state": {
+        "name": "Aktuelles Stromlimit"
+      },
+      "minimum_current": {
+        "name": "Minimalstrom"
+      },
+      "maximum_current": {
+        "name": "Maximalstrom"
+      },
+      "session_order_id": {
+        "name": "Ladevorgangs-ID"
+      },
       "signal": {
         "name": "Signal"
       },
       "firmware": {
         "name": "Firmware"
+      },
+      "latest_firmware": {
+        "name": "Neueste Firmware"
       }
     },
     "binary_sensor": {
       "charging": {
         "name": "Lädt"
+      },
+      "plugged_in": {
+        "name": "Eingesteckt"
+      },
+      "online": {
+        "name": "Online"
       },
       "active_appointment": {
         "name": "Eingesteckt"
@@ -76,6 +97,14 @@
     "number": {
       "current_limit": {
         "name": "Stromlimit"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Aktualisieren"
+      },
+      "reauthenticate": {
+        "name": "Neu anmelden"
       }
     }
   }

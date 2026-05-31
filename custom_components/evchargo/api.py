@@ -110,8 +110,10 @@ class EvchargoApi:
                 json=json_data,
             ) as response:
                 return await self._parse_response(response, method=method, path=path)
+        except TimeoutError as err:
+            raise EvchargoApiError(f"Timeout calling {method} {path}") from err
         except ClientError as err:
-            raise EvchargoApiError(f"HTTP error calling {path}: {err}") from err
+            raise EvchargoApiError(f"HTTP error calling {method} {path}: {err}") from err
 
     async def _parse_response(
         self, response: ClientResponse, *, method: str, path: str
@@ -121,7 +123,8 @@ class EvchargoApi:
         except Exception as err:  # noqa: BLE001
             text = await response.text()
             raise EvchargoApiError(
-                f"Unexpected non-JSON response ({response.status}): {text[:200]}"
+                f"Unexpected non-JSON response from {method} {path} "
+                f"(HTTP {response.status}): {text[:200]}"
             ) from err
 
         if _LOGGER.isEnabledFor(logging.DEBUG):
@@ -134,8 +137,17 @@ class EvchargoApi:
             )
 
         code = payload.get("code")
-        if code in AUTH_ERROR_CODES:
-            raise EvchargoAuthError(payload.get("message") or f"Auth code {code}")
+        message = payload.get("message")
+        if code in AUTH_ERROR_CODES or response.status in {401, 403}:
+            raise EvchargoAuthError(
+                f"{method} {path} authentication failed with HTTP {response.status}, "
+                f"API code {code}: {message or 'no message'}"
+            )
+        if response.status >= 400:
+            raise EvchargoApiError(
+                f"{method} {path} failed with HTTP {response.status}, "
+                f"API code {code}: {message or 'no message'}"
+            )
         return payload
 
     async def async_login(self, *, force: bool = False) -> str:
@@ -212,7 +224,8 @@ class EvchargoApi:
 
         if response.get("code") != SUCCESS_CODE:
             raise EvchargoApiError(
-                response.get("message") or f"Request failed ({response.get('code')}) for {path}"
+                f"{method} {path} failed with API code {response.get('code')}: "
+                f"{response.get('message') or 'no message'}"
             )
         return response
 

@@ -50,16 +50,37 @@
       "session_energy": {
         "name": "Session energy"
       },
+      "current_limit_state": {
+        "name": "Current limit state"
+      },
+      "minimum_current": {
+        "name": "Minimum current"
+      },
+      "maximum_current": {
+        "name": "Maximum current"
+      },
+      "session_order_id": {
+        "name": "Session order ID"
+      },
       "signal": {
         "name": "Signal"
       },
       "firmware": {
         "name": "Firmware"
+      },
+      "latest_firmware": {
+        "name": "Latest firmware"
       }
     },
     "binary_sensor": {
       "charging": {
         "name": "Charging"
+      },
+      "plugged_in": {
+        "name": "Plugged in"
+      },
+      "online": {
+        "name": "Online"
       },
       "active_appointment": {
         "name": "Active appointment"
@@ -76,6 +97,14 @@
     "number": {
       "current_limit": {
         "name": "Current limit"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      },
+      "reauthenticate": {
+        "name": "Re-authenticate"
       }
     }
   }
