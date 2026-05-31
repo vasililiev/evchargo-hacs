@@ -276,8 +276,19 @@ class EvchargoApi:
     async def async_start_charging(self, charger_id: str, connector_num: int = 1) -> None:
         await self._request_charge_action("start", charger_id, connector_num)
 
-    async def async_stop_charging(self, charger_id: str, connector_num: int = 1) -> None:
-        await self._request_charge_action("stop", charger_id, connector_num)
+    async def async_stop_charging(
+        self,
+        charger_id: str,
+        connector_num: int = 1,
+        *,
+        order_id: int | str | None = None,
+    ) -> None:
+        await self._request_charge_action(
+            "stop",
+            charger_id,
+            connector_num,
+            order_id=order_id,
+        )
 
     async def async_set_current_limit(
         self,
@@ -312,13 +323,33 @@ class EvchargoApi:
         raise EvchargoApiError(f"Unable to set current limit: {last_error}")
 
     async def _request_charge_action(
-        self, action: str, charger_id: str, connector_num: int = 1
+        self,
+        action: str,
+        charger_id: str,
+        connector_num: int = 1,
+        *,
+        order_id: int | str | None = None,
     ) -> None:
         path = f"/app/v1/home/cp/{charger_id}/{action}"
-        attempts: tuple[tuple[str, dict[str, Mapping[str, Any]]], ...] = (
-            ("POST", {"data": {"connectorNum": connector_num}}),
-            ("POST", {"params": {"connectorNum": connector_num}}),
-            ("POST", {"json_data": {"connectorNum": connector_num}}),
+        payloads: list[dict[str, Any]] = [{"connectorNum": connector_num}]
+        if action == "stop" and order_id not in (None, ""):
+            payloads.extend(
+                [
+                    {"connectorNum": connector_num, "orderId": order_id},
+                    {"connectorNum": connector_num, "chargeOrderId": order_id},
+                    {"connectorNum": connector_num, "chargingOrderId": order_id},
+                ]
+            )
+
+        attempts: tuple[tuple[str, dict[str, Mapping[str, Any]]], ...] = tuple(
+            (method, {kind: payload})
+            for payload in payloads
+            for method, kind in (
+                ("POST", "data"),
+                ("POST", "params"),
+                ("POST", "json_data"),
+            )
+        ) + (
             ("POST", {"data": {}}),
             ("POST", {"params": {}}),
             ("POST", {"json_data": {}}),

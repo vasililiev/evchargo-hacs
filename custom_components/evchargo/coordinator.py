@@ -61,13 +61,38 @@ class EvchargoDataUpdateCoordinator(DataUpdateCoordinator[dict]):
                 await self.api.async_start_charging(self.charger_id)
             else:
                 self._last_start_requested_at = None
-                await self.api.async_stop_charging(self.charger_id)
+                await self._async_stop_charging()
         except EvchargoApiError:
             self._charging_enabled = previous_state
             self._last_start_requested_at = previous_start_requested_at
             raise
 
         await self.async_refresh()
+
+    async def _async_stop_charging(self) -> None:
+        order_id = first_value(self.data or {}, "detail.chargingData.orderId")
+        try:
+            await self.api.async_stop_charging(self.charger_id, order_id=order_id)
+        except EvchargoApiError as err:
+            min_current = _coerce_int(
+                first_value(
+                    self.data or {},
+                    "detail.enableMinCurrent",
+                    "detail.minCurrent",
+                    "rate.connectorSetCurrentList.0.current",
+                )
+            )
+            if min_current is None:
+                raise
+
+            try:
+                await self.api.async_set_current_limit(self.charger_id, min_current)
+            except EvchargoApiError:
+                raise err
+
+            raise EvchargoApiError(
+                f"Stop charging failed ({err}); reduced charging current to {min_current} A"
+            ) from err
 
     async def _async_update_data(self) -> dict:
         try:
@@ -148,7 +173,7 @@ class EvchargoDataUpdateCoordinator(DataUpdateCoordinator[dict]):
             self._charging_enabled = False
             self._last_start_requested_at = None
             try:
-                await self.api.async_stop_charging(self.charger_id)
+                await self._async_stop_charging()
             except EvchargoApiError:
                 _LOGGER.warning(
                     "Failed to clear stale Evchargo charging state after charging stopped",
@@ -176,3 +201,12 @@ def _coerce_string(value: Any) -> str | None:
     if value is None:
         return None
     return str(value).strip().lower() or None
+
+
+def _coerce_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None

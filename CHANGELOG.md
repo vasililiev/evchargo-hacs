@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.5.29.1
+- added stop-request variants that include the active `chargingData.orderId` for backends that require a session identifier
+- added a minimum-current fallback when the Evchargo backend rejects a stop command, so failed stops reduce charging as far as the API allows
+
 ## 2026.5.4.4
 - verified live start/stop behavior with vehicle cable connected; start and stop both succeed through the form-body `connectorNum` variant
 - added a pre-start cable-state guard: when the charger reports `runStatus: Available`, Home Assistant now refuses the start request with a clear "vehicle cable is not connected" message instead of silently accepting a no-op
