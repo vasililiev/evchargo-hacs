@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026.7.4.1 
+
+### ⚠️ Breaking changes 
+- The **status** sensor no longer exposes RFID card IDs, authorized-user records, `user_info`, `home_users`, or `payment_config` as raw attributes by default. Sensitive lists are now published as counts (`rfid_card_count`, `authorized_user_count`, `home_user_count`) and other leaf PII (email/phone/token) is redacted. To restore the old behaviour, enable **Settings → Devices & Services → Evchargo → Configure → "Expose sensitive attributes"**. 
+- The **Base URL** must now use `https://`. 
+
 ## 2026.5.31.1
 - added diagnostic refresh and reauthenticate buttons for manual recovery after token or cloud-state issues
 - added extra diagnostic sensors for current limits, active charge order ID, latest firmware, plugged-in state, and online state

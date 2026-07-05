@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import logging
-from typing import Any
+import logging 
+from typing import Any 
+from urllib.parse import urlparse 
 
 import voluptuous as vol
 
@@ -10,21 +11,27 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import EvchargoApi, EvchargoApiError, EvchargoAuthError
-from .const import (
-    CONF_BASE_URL,
-    CONF_CHARGER_ID,
-    CONF_DEVICE_ID,
-    CONF_SCAN_INTERVAL,
-    DEFAULT_BASE_URL,
-    DEFAULT_DEVICE_ID,
-    DEFAULT_SCAN_INTERVAL_SECONDS,
-    DOMAIN,
-    MAX_SCAN_INTERVAL_SECONDS,
-    MIN_SCAN_INTERVAL_SECONDS,
-)
+from .const import ( 
+    CONF_BASE_URL, 
+    CONF_CHARGER_ID, 
+    CONF_DEVICE_ID, 
+    CONF_EXPOSE_SENSITIVE_ATTRIBUTES, 
+    CONF_SCAN_INTERVAL, 
+    DEFAULT_BASE_URL, 
+    DEFAULT_DEVICE_ID, 
+    DEFAULT_EXPOSE_SENSITIVE_ATTRIBUTES, 
+    DEFAULT_SCAN_INTERVAL_SECONDS, 
+    DOMAIN, 
+    MAX_SCAN_INTERVAL_SECONDS, 
+    MIN_SCAN_INTERVAL_SECONDS, 
+) 
 
 _LOGGER = logging.getLogger(__name__)
 
+def _is_https_url(value: Any) -> bool: 
+    """Return True only for a well-formed https:// URL.""" 
+    parsed = urlparse(str(value).strip()) 
+    return parsed.scheme == "https" and bool(parsed.netloc) 
 
 def _build_user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     defaults = defaults or {}
@@ -43,16 +50,24 @@ def _build_user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     )
 
 
-def _build_options_schema(options: dict[str, Any] | None = None) -> vol.Schema:
-    options = options or {}
-    return vol.Schema(
-        {
-            vol.Optional(
-                CONF_SCAN_INTERVAL,
-                default=int(options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)),
-            ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL_SECONDS, max=MAX_SCAN_INTERVAL_SECONDS))
-        }
-    )
+def _build_options_schema(options: dict[str, Any] | None = None) -> vol.Schema: 
+    options = options or {} 
+    return vol.Schema( 
+    { 
+        vol.Optional( 
+            CONF_SCAN_INTERVAL, 
+            default=int(options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS)), 
+        ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL_SECONDS, max=MAX_SCAN_INTERVAL_SECONDS)), 
+        vol.Optional( 
+            CONF_EXPOSE_SENSITIVE_ATTRIBUTES, 
+            default=bool( 
+                options.get( 
+                    CONF_EXPOSE_SENSITIVE_ATTRIBUTES, 
+                    DEFAULT_EXPOSE_SENSITIVE_ATTRIBUTES, 
+                ) 
+            ), 
+        ): bool, 
+    }) 
 
 
 class EvchargoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -60,21 +75,38 @@ class EvchargoConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+    async def async_step_user(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            try:
-                title = await self._async_validate_input(user_input)
-            except EvchargoAuthError:
-                errors["base"] = "invalid_auth"
-            except EvchargoApiError:
-                _LOGGER.debug("Unable to validate Evchargo credentials", exc_info=True)
-                errors["base"] = "cannot_connect"
+            base_url = user_input.get(CONF_BASE_URL, DEFAULT_BASE_URL)
+
+            if not _is_https_url(base_url):
+                errors[CONF_BASE_URL] = "invalid_base_url"
             else:
-                await self.async_set_unique_id(user_input[CONF_CHARGER_ID])
-                self._abort_if_unique_id_configured()
-                return self.async_create_entry(title=title, data=user_input)
+                try:
+                    title = await self._async_validate_input(user_input)
+                except EvchargeAuthError:
+                    errors["base"] = "invalid_auth"
+                except EvchargeApiError:
+                    _LOGGER.debug(
+                        "Unable to validate Evcharge credentials",
+                        exc_info=True,
+                    )
+                    errors["base"] = "cannot_connect"
+                else:
+                    await self.async_set_unique_id(
+                        user_input[CONF_CHARGER_ID]
+                    )
+                    self._abort_if_unique_id_configured()
+
+                    return self.async_create_entry(
+                        title=title,
+                        data=user_input,
+                    )
 
         return self.async_show_form(
             step_id="user",
@@ -119,15 +151,17 @@ class EvchargoOptionsFlow(config_entries.OptionsFlow):
         super().__init__()
         self._config_entry = config_entry
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None):
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+    async def async_step_init(self, user_input: dict[str, Any] | None = None): 
+        if user_input is not None: 
+            return self.async_create_entry(title="", data=user_input) 
 
-        current_value = self._config_entry.options.get(
-            CONF_SCAN_INTERVAL,
-            self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS),
-        )
-        return self.async_show_form(
-            step_id="init",
-            data_schema=_build_options_schema({CONF_SCAN_INTERVAL: current_value}),
-        )
+        current = { 
+            CONF_SCAN_INTERVAL: self._config_entry.options.get( 
+                CONF_SCAN_INTERVAL, 
+                self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS), 
+            ), 
+            CONF_EXPOSE_SENSITIVE_ATTRIBUTES: self._config_entry.options.get(CONF_EXPOSE_SENSITIVE_ATTRIBUTES, DEFAULT_EXPOSE_SENSITIVE_ATTRIBUTES),
+        } 
+        return self.async_show_form( 
+            step_id="init", 
+            data_schema=_build_options_schema(current)) 
